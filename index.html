@@ -29,6 +29,7 @@ li .t{flex:1;min-width:0}li b{display:block;overflow:hidden;text-overflow:ellips
 .x{background:none;border:0;font-size:20px;color:var(--mut);padding:4px 8px}
 .note{color:var(--mut);font-size:13px;line-height:1.4}
 .hide{display:none}
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90%;text-align:center;z-index:9}
 </style>
 </head>
 <body>
@@ -51,6 +52,7 @@ li .t{flex:1;min-width:0}li b{display:block;overflow:hidden;text-overflow:ellips
 <ul id="res"></ul>
 </section>
 
+<div id="toast"></div>
 <script>
 (function(){
 var $=function(i){return document.getElementById(i)},v=$('v'),db=null,tracks=[],cur=-1,url=null;
@@ -73,18 +75,20 @@ function search(){var q=$('q').value.trim();msg('Recherche…');
  var f='mediatype:movies AND collection:(feature_films OR opensource_movies OR animationandcartoons OR prelinger)';
  var u='https://archive.org/advancedsearch.php?q='+encodeURIComponent((q?'('+q+') AND ':'')+f)+'&fl[]=identifier&fl[]=title&sort[]=downloads+desc&rows=20&output=json';
  fetch(u).then(function(r){return r.json()}).then(function(d){var ds=d.response.docs;if(!ds.length){msg('Aucun résultat.');return}
-  var ul=$('res');ul.innerHTML='';ds.forEach(function(x){var li=document.createElement('li');li.innerHTML='<img alt="" loading="lazy"><div class="t"><b></b><small>Internet Archive</small></div>';
+  var ul=$('res');ul.innerHTML='';ds.forEach(function(x){var li=document.createElement('li');li.innerHTML='<img alt="" loading="lazy"><div class="t"><b></b><small>Internet Archive</small></div><button class="x" data-m="lib" title="Garder dans ma bibliothèque">📥</button><button class="x" data-m="file" title="Télécharger le fichier">💾</button>';
    li.querySelector('img').src='https://archive.org/services/img/'+encodeURIComponent(x.identifier);li.querySelector('b').textContent=x.title||x.identifier;
-   li.onclick=function(){playWeb(x.identifier,x.title||x.identifier)};ul.appendChild(li)})})
+   li.onclick=function(){playWeb(x.identifier,x.title||x.identifier)};[].forEach.call(li.querySelectorAll('.x'),function(b){b.onclick=function(e){e.stopPropagation();dlWeb(x.identifier,x.title||x.identifier,b.dataset.m)}});ul.appendChild(li)})})
  .catch(function(){msg('Connexion impossible. Vérifie internet.')})}
-function playWeb(id,title){$('pt').textContent='Chargement…';
- fetch('https://archive.org/metadata/'+encodeURIComponent(id)).then(function(r){return r.json()}).then(function(d){
-  var f=(d.files||[]).filter(function(x){return /\.mp4$/i.test(x.name)});if(!f.length){$('pt').textContent='Vidéo non lisible, essaie une autre.';return}
+function pickUrl(id){return fetch('https://archive.org/metadata/'+encodeURIComponent(id)).then(function(r){return r.json()}).then(function(d){
+  var f=(d.files||[]).filter(function(x){return /\.mp4$/i.test(x.name)});if(!f.length)throw 0;
   f.sort(function(a,b){return (+a.size||1e12)-(+b.size||1e12)});
   var big=f.filter(function(x){return +x.size>5e6});var p=(big[0]||f[0]).name;
-  setSrc('https://archive.org/download/'+encodeURIComponent(id)+'/'+p.split('/').map(encodeURIComponent).join('/'),title)})
- .catch(function(){$('pt').textContent='Connexion impossible.'})}
+  return 'https://archive.org/download/'+encodeURIComponent(id)+'/'+p.split('/').map(encodeURIComponent).join('/')})}
+function playWeb(id,title){$('pt').textContent='Chargement…';pickUrl(id).then(function(u){setSrc(u,title)}).catch(function(){$('pt').textContent='Vidéo non lisible, essaie une autre.'})}
+function dlWeb(id,title,mode){toast('Préparation…');pickUrl(id).then(function(u){grab(u,title,'.mp4',mode)}).catch(function(){toast('Vidéo indisponible.')})}
 $('go').onclick=search;$('q').onkeydown=function(e){if(e.key==='Enter')search()};
+function toast(t){var e=$('toast');e.textContent=t;e.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(function(){e.style.opacity=0},3500)}
+function grab(url,name,ext,mode){toast('Téléchargement en cours…');fetch(url).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){if(mode==='lib'){save(new File([b],name+ext,{type:b.type}));toast('Ajouté à ta bibliothèque ✓')}else{var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name.replace(/[\\/:*?"<>|]/g,'')+ext;document.body.appendChild(a);a.click();a.remove();toast('Fichier enregistré ✓')}}).catch(function(){toast('Téléchargement direct impossible : ouverture du lien…');window.open(url,'_blank')})}
 openDB(load);
 })();
 </script>
