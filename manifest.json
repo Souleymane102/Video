@@ -1,0 +1,1 @@
+{"name":"Ma Vidéo","short_name":"Ma Vidéo","description":"Lecteur vidéo gratuit","start_url":"./index.html","scope":"./","display":"standalone","background_color":"#121213","theme_color":"#d6336c","lang":"fr","icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}

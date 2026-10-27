@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ma Vidéo</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#d6336c">
+<link rel="icon" href="icon.svg">
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--tx:#1d1d1b;--mut:#77756e;--ac:#d6336c;--bd:#e3e0d8;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121213;--card:#1d1d20;--tx:#eeeeea;--mut:#9a9a94;--ac:#ff6b9d;--bd:#2d2d32}}
+:root[data-theme="dark"]{--bg:#121213;--card:#1d1d20;--tx:#eeeeea;--mut:#9a9a94;--ac:#ff6b9d;--bd:#2d2d32}
+*{box-sizing:border-box}html{color-scheme:light dark}
+body{margin:0 auto;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:720px;padding:14px}
+h1{font-size:22px;margin:2px 0 10px}
+video{width:100%;max-height:50vh;background:#000;border-radius:12px;display:block}
+#pt{font-weight:600;margin:8px 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.tabs{display:flex;gap:8px;margin:12px 0}
+button,.btn,select{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:10px 14px;border-radius:10px;font-size:15px;cursor:pointer}
+.on,.pri{background:var(--ac);color:#fff;border-color:var(--ac)}
+input[type=search]{flex:1;padding:11px;border:1px solid var(--bd);border-radius:10px;background:var(--card);color:var(--tx);font-size:15px}
+ul{list-style:none;margin:0;padding:0}
+li{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px;margin-bottom:8px;cursor:pointer}
+li.cur{border-color:var(--ac)}
+li img{width:84px;height:56px;object-fit:cover;border-radius:8px;background:#000;flex:none}
+li .t{flex:1;min-width:0}li b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}li small{color:var(--mut)}
+.x{background:none;border:0;font-size:20px;color:var(--mut);padding:4px 8px}
+.note{color:var(--mut);font-size:13px;line-height:1.4}
+.hide{display:none}
+</style>
+</head>
+<body>
+<h1>🎬 Ma Vidéo</h1>
+<video id="v" controls playsinline></video>
+<div id="pt">Aucune vidéo</div>
+<div class="row"><span class="note">Vitesse</span>
+<select id="sp"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select></div>
+<div class="tabs"><button id="t1" class="on">Mes vidéos</button><button id="t2">Vidéos libres</button></div>
+
+<section id="lib">
+<label class="btn pri" style="display:inline-block">+ Ajouter des vidéos<input id="file" type="file" accept="video/*" multiple hidden></label>
+<p class="note">Tes vidéos restent sur ton appareil et se lisent sans connexion.</p>
+<ul id="list"></ul>
+</section>
+
+<section id="web" class="hide">
+<p class="note">Films et vidéos libres de droits (domaine public) de l’Internet Archive. Nécessite une connexion.</p>
+<div class="row"><input id="q" type="search" placeholder="Ex : cartoon, western, documentaire…"><button id="go" class="pri">OK</button></div>
+<ul id="res"></ul>
+</section>
+
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)},v=$('v'),db=null,tracks=[],cur=-1,url=null;
+function openDB(cb){try{var r=indexedDB.open('ma-video',1);r.onupgradeneeded=function(){r.result.createObjectStore('t',{keyPath:'id',autoIncrement:true})};r.onsuccess=function(){db=r.result;cb()};r.onerror=function(){cb()}}catch(e){cb()}}
+function load(){if(!db){render();return}var o=db.transaction('t').objectStore('t').getAll();o.onsuccess=function(){tracks=o.result;render()}}
+function save(f){var rec={name:f.name.replace(/\.[^.]+$/,''),blob:f};if(!db){rec.id=Date.now()+Math.random();tracks.push(rec);render();return}var tx=db.transaction('t','readwrite');tx.objectStore('t').add(rec);tx.oncomplete=load}
+function del(id){if(!db){tracks=tracks.filter(function(t){return t.id!==id});render();return}var tx=db.transaction('t','readwrite');tx.objectStore('t').delete(id);tx.oncomplete=load}
+function render(){var ul=$('list');ul.innerHTML='';if(!tracks.length){ul.innerHTML='<li style="cursor:default"><small>Aucune vidéo. Ajoute tes fichiers.</small></li>';return}
+tracks.forEach(function(t,i){var li=document.createElement('li');if(i===cur)li.className='cur';li.innerHTML='<div class="t"><b></b><small>Sur l’appareil</small></div><button class="x" title="Supprimer">✕</button>';li.querySelector('b').textContent=t.name;
+li.onclick=function(){cur=i;playBlob(t);render()};li.querySelector('.x').onclick=function(e){e.stopPropagation();del(t.id)};ul.appendChild(li)})}
+function setSrc(s,title){v.src=s;v.playbackRate=+$('sp').value;v.play().catch(function(){});$('pt').textContent=title;window.scrollTo(0,0)}
+function playBlob(t){if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(t.blob);setSrc(url,t.name)}
+$('file').onchange=function(){Array.prototype.forEach.call(this.files,save);this.value=''};
+$('sp').onchange=function(){v.playbackRate=+this.value};
+v.onloadedmetadata=function(){v.playbackRate=+$('sp').value};
+function tab(w){$('lib').classList.toggle('hide',w!==1);$('web').classList.toggle('hide',w!==2);$('t1').classList.toggle('on',w===1);$('t2').classList.toggle('on',w===2)}
+$('t1').onclick=function(){tab(1)};$('t2').onclick=function(){tab(2)};
+function msg(t){$('res').innerHTML='<li style="cursor:default"><small></small></li>';$('res').querySelector('small').textContent=t}
+function search(){var q=$('q').value.trim();msg('Recherche…');
+ var f='mediatype:movies AND collection:(feature_films OR opensource_movies OR animationandcartoons OR prelinger)';
+ var u='https://archive.org/advancedsearch.php?q='+encodeURIComponent((q?'('+q+') AND ':'')+f)+'&fl[]=identifier&fl[]=title&sort[]=downloads+desc&rows=20&output=json';
+ fetch(u).then(function(r){return r.json()}).then(function(d){var ds=d.response.docs;if(!ds.length){msg('Aucun résultat.');return}
+  var ul=$('res');ul.innerHTML='';ds.forEach(function(x){var li=document.createElement('li');li.innerHTML='<img alt="" loading="lazy"><div class="t"><b></b><small>Internet Archive</small></div>';
+   li.querySelector('img').src='https://archive.org/services/img/'+encodeURIComponent(x.identifier);li.querySelector('b').textContent=x.title||x.identifier;
+   li.onclick=function(){playWeb(x.identifier,x.title||x.identifier)};ul.appendChild(li)})})
+ .catch(function(){msg('Connexion impossible. Vérifie internet.')})}
+function playWeb(id,title){$('pt').textContent='Chargement…';
+ fetch('https://archive.org/metadata/'+encodeURIComponent(id)).then(function(r){return r.json()}).then(function(d){
+  var f=(d.files||[]).filter(function(x){return /\.mp4$/i.test(x.name)});if(!f.length){$('pt').textContent='Vidéo non lisible, essaie une autre.';return}
+  f.sort(function(a,b){return (+a.size||1e12)-(+b.size||1e12)});
+  var big=f.filter(function(x){return +x.size>5e6});var p=(big[0]||f[0]).name;
+  setSrc('https://archive.org/download/'+encodeURIComponent(id)+'/'+p.split('/').map(encodeURIComponent).join('/'),title)})
+ .catch(function(){$('pt').textContent='Connexion impossible.'})}
+$('go').onclick=search;$('q').onkeydown=function(e){if(e.key==='Enter')search()};
+openDB(load);
+})();
+</script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}</script>
+</body>
+</html>
